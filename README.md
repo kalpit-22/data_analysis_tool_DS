@@ -1,4 +1,4 @@
-# DataPilot 🚀
+# DataPilot 
 
 An autonomous, self-correcting data analysis assistant powered by a dual-LLM architecture.  
 Give it a CSV and a plain-English question — it plans, writes code, executes, reviews, and self-corrects until the job is done.
