@@ -1,0 +1,114 @@
+"""
+Planner Agent (agents/planner.py)
+
+Receives a user's natural-language request plus a CSV schema summary,
+and returns a structured, ordered list of atomic analysis steps for the
+Coder Agent to implement.
+
+Hosted on the local vLLM server (Qwen3-8B-AWQ) — this agent needs to be
+fast and cheap since it runs on every request, and its output is
+strictly structured (no need for a heavyweight cloud model here).
+"""
+
+import os
+from typing import List
+
+from dotenv import load_dotenv
+from langchain_openai import ChatOpenAI
+from pydantic import BaseModel, Field
+
+load_dotenv()
+
+
+class TaskStep(BaseModel):
+    """A single atomic step in the analysis plan."""
+
+    step_name: str = Field(
+        description="Short filename-style identifier for this step, e.g. 'clean_data.py'"
+    )
+    description: str = Field(
+        description="One or two sentences describing what this step does"
+    )
+    expected_artifacts: List[str] = Field(
+        default=[],
+        description="List of filenames this step is expected to produce in the workspace (e.g. ['cleaned_data.csv'] or ['chart.png']). Leave empty if no files are output."
+    )
+
+
+class DataPlan(BaseModel):
+    """Structured output: an ordered list of steps to fulfill the user's request."""
+
+    steps: List[TaskStep] = Field(
+        description="Ordered list of atomic steps needed to complete the user's request"
+    )
+
+
+def get_planner_llm() -> ChatOpenAI:
+    """
+    Configure a ChatOpenAI client pointed at the local vLLM server, with
+    thinking mode disabled (we want fast, deterministic structured output,
+    not chain-of-thought) — see README for why this matters with Qwen3.
+    """
+    return ChatOpenAI(
+        base_url=os.getenv("LOCAL_LLM_BASE_URL", "http://localhost:8000/v1"),
+        api_key=os.getenv("LOCAL_LLM_API_KEY", "not-needed"),
+        model=os.getenv("LOCAL_LLM_MODEL", "Qwen/Qwen3-8B-AWQ"),
+        temperature=0.1,  # low temperature: we want consistent, structured planning
+        max_tokens=4096,
+        extra_body={
+            "chat_template_kwargs": {"enable_thinking": False}
+        }
+    )
+
+
+PLANNER_SYSTEM_PROMPT = """You are a data analysis planning agent. Given a user's request and a CSV schema, break the request down into a short, ordered list of atomic steps. Each step should be small enough to be a single Python script. For each step, set `expected_artifacts` to the **exact filename(s)** that the script should produce (e.g., 'cleaned_data.csv', 'aggregated_data.csv', 'revenue_by_region.png'). Use snake_case filenames without spaces. Keep the plan concise while fully addressing the request."""
+
+
+def plan_tasks(user_request: str, csv_schema: str) -> DataPlan:
+    """
+    Generate a structured task plan for the given user request and CSV schema.
+
+    Args:
+        user_request: The user's natural-language analysis request.
+        csv_schema: Markdown-formatted schema summary from profiler.py
+                    (column names, dtypes, non-null counts, sample rows).
+
+    Returns:
+        DataPlan with an ordered list of TaskStep objects.
+    """
+    llm = get_planner_llm()
+    structured_llm = llm.with_structured_output(DataPlan)
+
+    prompt = f"""{PLANNER_SYSTEM_PROMPT}
+
+CSV Schema:
+{csv_schema}
+
+User Request:
+{user_request}
+"""
+
+    return structured_llm.invoke(prompt)
+
+
+if __name__ == "__main__":
+    # Quick manual test — run with: python agents/planner.py
+    # Requires the local vLLM server to be running (see scripts/launch_vllm.sh)
+
+    example_schema = """
+| Column      | Type    | Non-Null Count | Sample          |
+|-------------|---------|-----------------|-----------------|
+| order_id    | int64   | 1000            | 1001            |
+| region      | object  | 1000            | "West"          |
+| revenue     | float64 | 998             | 245.50          |
+| order_date  | object  | 1000            | "2024-01-15"    |
+"""
+    example_request = "Show me total revenue by region and plot it as a bar chart."
+
+    print("Requesting plan from local Planner Agent...\n")
+    result = plan_tasks(example_request, example_schema)
+
+    print(f"Generated {len(result.steps)} step(s):\n")
+    for i, step in enumerate(result.steps, 1):
+        print(f"{i}. {step.step_name}")
+        print(f"   {step.description}\n")
