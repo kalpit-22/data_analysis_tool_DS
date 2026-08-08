@@ -45,7 +45,7 @@ Steps 3–5 loop up to 3 times per step with self-correction feedback.
 ### 1. Clone & install
 
 ```bash
-git clone https://github.com/your-username/DataPilot.git
+git clone https://github.com/kalpit-22/data_analysis_agents.git
 cd DataPilot
 python -m venv .venv
 source .venv/bin/activate   # Linux/macOS
