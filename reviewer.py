@@ -24,18 +24,16 @@ class ReviewResult(BaseModel):
 
 def get_reviewer_llm() -> ChatOpenAI:
     """
-    Configure ChatOpenAI client pointed at local vLLM server,
-    matching the planner config (thinking mode disabled, structured output).
+    Configure ChatOpenAI client pointed at the DeepSeek cloud API (Flash).
+    Review is a simple structured pass/fail evaluation — Flash is fast
+    and cheap for this workload.
     """
     return ChatOpenAI(
-        base_url=os.getenv("LOCAL_LLM_BASE_URL", "http://localhost:8000/v1"),
-        api_key=os.getenv("LOCAL_LLM_API_KEY", "not-needed"),
-        model=os.getenv("LOCAL_LLM_MODEL", "Qwen/Qwen3-8B-AWQ"),
+        base_url=os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1"),
+        api_key=os.getenv("DEEPSEEK_API_KEY"),
+        model=os.getenv("DEEPSEEK_FLASH_MODEL", "deepseek-chat"),
         temperature=0.1,  # low temperature for consistent evaluation
-        max_tokens=4098,
-        extra_body={
-            "chat_template_kwargs": {"enable_thinking": False}
-        },
+        max_tokens=4096,
     )
 
 

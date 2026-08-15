@@ -1,11 +1,10 @@
 """
-Phase 3B: Coder Agent.
+Coder Agent (coder.py)
 
-Hosted on the cloud (DeepSeek V4 Pro). Writes Pandas/Matplotlib code for
-each atomic step handed down by the Planner.
-
-System prompt encodes hard rules the generated code must follow so it
-runs cleanly inside the native-Windows executor sandbox (Phase 4).
+Uses the DeepSeek Pro model (deepseek-reasoner) via the DeepSeek cloud API.
+Code generation is the most demanding task in the pipeline, so Pro is used
+here for maximum reliability. All other agents (Planner, Reviewer) use
+the cheaper Flash model (deepseek-chat).
 """
 
 import os
@@ -17,7 +16,7 @@ load_dotenv()
 coder_llm = ChatOpenAI(
     base_url=os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1"),
     api_key=os.getenv("DEEPSEEK_API_KEY"),
-    model=os.getenv("DEEPSEEK_MODEL", "deepseek-v4-pro"),
+    model=os.getenv("DEEPSEEK_PRO_MODEL", "deepseek-reasoner"),
     temperature=0.1,  # low temperature for stable code generation
 )
 

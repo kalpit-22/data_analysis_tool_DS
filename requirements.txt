@@ -9,12 +9,6 @@ pandas>=2.2.0
 matplotlib>=3.9.0
 numpy>=1.26.0
 
-# --- Local model serving (install separately on your GPU box, see README) ---
-# vllm==0.8.5          # confirmed working on WSL2 + RTX 4070 Super (12GB VRAM)
-# Model: Qwen/Qwen3-8B-AWQ (4-bit quantized — full bf16 8B does not fit in 12GB)
-# Launch with --quantization awq_marlin (NOT plain awq — ~4.5x slower), 
-# --max-model-len 8192, --gpu-memory-utilization 0.9 (see scripts/launch_vllm.sh)
-
 # --- Env / utility ---
 python-dotenv>=1.0.1
 httpx>=0.27.0

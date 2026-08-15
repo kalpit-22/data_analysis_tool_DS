@@ -1,13 +1,13 @@
 """
-Planner Agent (agents/planner.py)
+Planner Agent (planner.py)
 
 Receives a user's natural-language request plus a CSV schema summary,
 and returns a structured, ordered list of atomic analysis steps for the
 Coder Agent to implement.
 
-Hosted on the local vLLM server (Qwen3-8B-AWQ) — this agent needs to be
-fast and cheap since it runs on every request, and its output is
-strictly structured (no need for a heavyweight cloud model here).
+Uses the DeepSeek Flash model (deepseek-chat) via the DeepSeek cloud API.
+Planning is a lightweight structured-output task — Flash is fast and cheap
+for this workload with no loss in quality.
 """
 
 import os
@@ -45,19 +45,16 @@ class DataPlan(BaseModel):
 
 def get_planner_llm() -> ChatOpenAI:
     """
-    Configure a ChatOpenAI client pointed at the local vLLM server, with
-    thinking mode disabled (we want fast, deterministic structured output,
-    not chain-of-thought) — see README for why this matters with Qwen3.
+    Configure a ChatOpenAI client pointed at the DeepSeek cloud API.
+    Uses the Flash model (deepseek-chat) — fast, cheap, and fully capable
+    of producing consistent structured output for planning tasks.
     """
     return ChatOpenAI(
-        base_url=os.getenv("LOCAL_LLM_BASE_URL", "http://localhost:8000/v1"),
-        api_key=os.getenv("LOCAL_LLM_API_KEY", "not-needed"),
-        model=os.getenv("LOCAL_LLM_MODEL", "Qwen/Qwen3-8B-AWQ"),
+        base_url=os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1"),
+        api_key=os.getenv("DEEPSEEK_API_KEY"),
+        model=os.getenv("DEEPSEEK_FLASH_MODEL", "deepseek-chat"),
         temperature=0.1,  # low temperature: we want consistent, structured planning
         max_tokens=4096,
-        extra_body={
-            "chat_template_kwargs": {"enable_thinking": False}
-        }
     )
 
 
@@ -92,8 +89,8 @@ User Request:
 
 
 if __name__ == "__main__":
-    # Quick manual test — run with: python agents/planner.py
-    # Requires the local vLLM server to be running (see scripts/launch_vllm.sh)
+    # Quick manual test — run with: python planner.py
+    # Requires DEEPSEEK_API_KEY to be set in .env
 
     example_schema = """
 | Column      | Type    | Non-Null Count | Sample          |
@@ -105,7 +102,7 @@ if __name__ == "__main__":
 """
     example_request = "Show me total revenue by region and plot it as a bar chart."
 
-    print("Requesting plan from local Planner Agent...\n")
+    print("Requesting plan from DeepSeek Planner Agent (Flash)...\n")
     result = plan_tasks(example_request, example_schema)
 
     print(f"Generated {len(result.steps)} step(s):\n")

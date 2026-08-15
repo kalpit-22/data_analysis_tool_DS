@@ -87,8 +87,8 @@ def main():
         print(f"[-] Profiling failed: {e}")
         sys.exit(1)
 
-    # 3. Request execution plan from local Planner
-    print("\n[+] Generating analysis plan from local Planner Agent...")
+    # 3. Request execution plan from DeepSeek Planner (Flash)
+    print("\n[+] Generating analysis plan from DeepSeek Planner Agent (Flash)...")
     try:
         plan = plan_tasks(request_input, schema)
         print("[DEBUG] Planner returned plan with", len(plan.steps), "steps")
@@ -161,7 +161,7 @@ def main():
                 print("    Verifying outputs...")
                 artifact_check = verify_artifacts(step.expected_artifacts)
                 
-                # Review results (local Qwen3-8B-AWQ)
+                # Review results (DeepSeek Flash)
                 print("    Reviewing results...")
                 review_result = review(step.description, exec_result, artifact_check)
                 
