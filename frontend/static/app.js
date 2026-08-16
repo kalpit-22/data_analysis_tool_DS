@@ -13,9 +13,12 @@ const feedContainer = document.getElementById('feed-container');
 const resultsContainer = document.getElementById('results-container');
 const mainSpinner = document.getElementById('main-spinner');
 const navStatusText = document.getElementById('nav-status-text');
+const cancelBtn = document.getElementById('cancel-btn');
+const homeBtn = document.getElementById('home-btn');
 
 let currentFile = null;
 let sessionToken = null;
+let currentEventSource = null;
 
 // ── File Upload Logic ──
 browseBtn.addEventListener('click', () => fileInput.click());
@@ -116,8 +119,12 @@ function startAnalysisStream(query) {
     resultsContainer.classList.remove('empty-state');
     feedContainer.innerHTML = '';
     navStatusText.textContent = "Analyzing...";
+    
+    cancelBtn.classList.remove('hidden');
+    homeBtn.classList.add('hidden');
 
     const es = new EventSource(`/analyze?token=${sessionToken}&request=${encodeURIComponent(query)}`);
+    currentEventSource = es;
 
     let currentStepEl = null;
 
@@ -167,22 +174,31 @@ function startAnalysisStream(query) {
         else if (data.type === 'done') {
             mainSpinner.classList.add('hidden');
             es.close();
+            currentEventSource = null;
             appendLog('System', 'Analysis complete.');
             navStatusText.textContent = "Complete";
+            cancelBtn.classList.add('hidden');
+            homeBtn.classList.remove('hidden');
         }
         else if (data.type === 'error') {
             mainSpinner.classList.add('hidden');
             es.close();
+            currentEventSource = null;
             appendLog('Error', data.message, true);
             navStatusText.textContent = "Error";
+            cancelBtn.classList.add('hidden');
+            homeBtn.classList.remove('hidden');
         }
     };
 
     es.onerror = () => {
         es.close();
+        currentEventSource = null;
         mainSpinner.classList.add('hidden');
         appendLog('Error', 'Lost connection to server.', true);
         navStatusText.textContent = "Error";
+        cancelBtn.classList.add('hidden');
+        homeBtn.classList.remove('hidden');
     };
 }
 
@@ -245,7 +261,8 @@ function renderArtifact(data) {
 
     card.innerHTML = `
         <div class="artifact-header">
-            <i class="fa-solid fa-file"></i> ${data.filename}
+            <div class="title-wrapper"><i class="fa-solid fa-file"></i> ${data.filename}</div>
+            <button class="btn secondary" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;" onclick="downloadArtifact('${data.filename}', '${data.mime}', '${data.data}')"><i class="fa-solid fa-download"></i> Download</button>
         </div>
         <div class="artifact-body">
             ${content}
@@ -259,3 +276,38 @@ function renderArtifact(data) {
 function scrollToBottom(el) {
     el.scrollTop = el.scrollHeight;
 }
+
+// ── Button Logic ──
+window.downloadArtifact = function(filename, mime, base64Data) {
+    const link = document.createElement('a');
+    link.href = `data:${mime};base64,${base64Data}`;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+cancelBtn.addEventListener('click', () => {
+    if (currentEventSource) {
+        currentEventSource.close();
+        currentEventSource = null;
+    }
+    mainSpinner.classList.add('hidden');
+    appendLog('System', 'Analysis cancelled by user.', true);
+    navStatusText.textContent = "Cancelled";
+    
+    cancelBtn.classList.add('hidden');
+    homeBtn.classList.remove('hidden');
+});
+
+homeBtn.addEventListener('click', () => {
+    // Reset UI
+    executionSection.classList.add('hidden');
+    uploadSection.classList.remove('hidden');
+    resultsContainer.innerHTML = `<i class="fa-regular fa-image empty-icon"></i><p>Artifacts will appear here as they are generated.</p>`;
+    resultsContainer.classList.add('empty-state');
+    
+    analyzeBtn.disabled = false;
+    analyzeBtn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Launch Analysis';
+    navStatusText.textContent = "Ready";
+});

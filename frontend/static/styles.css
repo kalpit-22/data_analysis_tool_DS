@@ -255,6 +255,13 @@ h2 {
 .btn.secondary:hover {
     background: rgba(255,255,255,0.05);
 }
+.btn.danger {
+    color: var(--error);
+    border-color: var(--error);
+}
+.btn.danger:hover {
+    background: rgba(239, 68, 68, 0.1);
+}
 .full-width {
     width: 100%;
 }
@@ -280,6 +287,12 @@ h2 {
     justify-content: space-between;
     align-items: center;
     margin-bottom: var(--spacing-md);
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
 }
 
 .spinner {
@@ -389,11 +402,17 @@ h2 {
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
 .artifact-header {
-    background: rgba(255,255,255,0.05);
+    background: rgba(0,0,0,0.2);
     padding: 0.75rem 1rem;
     font-size: 0.85rem;
     font-weight: 500;
+    color: var(--text-secondary);
     border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.artifact-header .title-wrapper {
     display: flex;
     align-items: center;
     gap: 0.5rem;
