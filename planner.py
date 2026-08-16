@@ -12,12 +12,9 @@ for this workload with no loss in quality.
 
 import os
 from typing import List
-
-from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
-
-load_dotenv()
+from config import PLANNER_MODEL, DEEPSEEK_API_KEY, DEEPSEEK_BASE_URL
 
 
 class TaskStep(BaseModel):
@@ -50,15 +47,32 @@ def get_planner_llm() -> ChatOpenAI:
     of producing consistent structured output for planning tasks.
     """
     return ChatOpenAI(
-        base_url=os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1"),
-        api_key=os.getenv("DEEPSEEK_API_KEY"),
-        model=os.getenv("DEEPSEEK_FLASH_MODEL", "deepseek-chat"),
+        base_url=DEEPSEEK_BASE_URL,
+        api_key=DEEPSEEK_API_KEY,
+        model=PLANNER_MODEL,
         temperature=0.1,  # low temperature: we want consistent, structured planning
         max_tokens=4096,
     )
 
 
-PLANNER_SYSTEM_PROMPT = """You are a data analysis planning agent. Given a user's request and a CSV schema, break the request down into a short, ordered list of atomic steps. Each step should be small enough to be a single Python script. For each step, set `expected_artifacts` to the **exact filename(s)** that the script should produce (e.g., 'cleaned_data.csv', 'aggregated_data.csv', 'revenue_by_region.png'). Use snake_case filenames without spaces. Keep the plan concise while fully addressing the request."""
+PLANNER_SYSTEM_PROMPT = """You are a data analysis planning agent. Given a user's request and a CSV schema, break the request down into a short, ordered list of atomic steps. Each step should be small enough to be a single Python script.
+
+Return your answer as JSON matching this exact structure:
+{
+  "steps": [
+    {
+      "step_name": "snake_case_script_name.py",
+      "description": "One or two sentences describing what this step does.",
+      "expected_artifacts": ["output_filename.csv"]
+    }
+  ]
+}
+
+Rules:
+- `step_name` is REQUIRED — use a short snake_case filename ending in .py (e.g. "clean_data.py", "plot_revenue.py").
+- `expected_artifacts` contains the exact output filenames the script must produce (e.g. ["revenue_by_month.png"]).
+- Use snake_case filenames without spaces.
+- Keep the plan concise while fully addressing the request."""
 
 
 def plan_tasks(user_request: str, csv_schema: str) -> DataPlan:
@@ -74,7 +88,8 @@ def plan_tasks(user_request: str, csv_schema: str) -> DataPlan:
         DataPlan with an ordered list of TaskStep objects.
     """
     llm = get_planner_llm()
-    structured_llm = llm.with_structured_output(DataPlan)
+    # DeepSeek doesn't support JSON Schema response_format — use json_mode instead
+    structured_llm = llm.with_structured_output(DataPlan, method="json_mode")
 
     prompt = f"""{PLANNER_SYSTEM_PROMPT}
 

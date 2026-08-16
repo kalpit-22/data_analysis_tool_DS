@@ -21,7 +21,7 @@ def profile_csv(csv_path: str) -> str:
 
     try:
         # 1. Basic Dimensions
-        schema = f"### Dataset Profile: `{os.path.basename(csv_path)}`\n"
+        schema = f"### Dataset Profile: `data.csv`\n"
         schema += f"- **Total Rows:** {df.shape[0]}\n"
         schema += f"- **Total Columns:** {df.shape[1]}\n\n"
         

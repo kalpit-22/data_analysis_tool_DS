@@ -1,1 +1,22 @@
+# --- Secrets ---
 .env
+
+# --- Virtual environment ---
+venv/
+.venv/
+
+# --- Sandbox workspace output (generated files, not source) ---
+workspace/
+uploads/
+
+# --- Python cache ---
+__pycache__/
+*.py[cod]
+*.pyo
+
+# --- macOS ---
+.DS_Store
+
+# --- Editor ---
+.vscode/
+.idea/

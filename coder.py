@@ -9,14 +9,12 @@ the cheaper Flash model (deepseek-chat).
 
 import os
 from langchain_openai import ChatOpenAI
-from dotenv import load_dotenv
-
-load_dotenv()
+from config import CODER_MODEL, DEEPSEEK_API_KEY, DEEPSEEK_BASE_URL
 
 coder_llm = ChatOpenAI(
-    base_url=os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1"),
-    api_key=os.getenv("DEEPSEEK_API_KEY"),
-    model=os.getenv("DEEPSEEK_PRO_MODEL", "deepseek-reasoner"),
+    base_url=DEEPSEEK_BASE_URL,
+    api_key=DEEPSEEK_API_KEY,
+    model=CODER_MODEL,
     temperature=0.1,  # low temperature for stable code generation
 )
 
@@ -29,19 +27,24 @@ given task. Follow every rule below exactly — violations cause hard failures.
 1. The script receives ONE command-line argument: the workspace directory.
    Read it with:
        workspace = Path(sys.argv[1])
-2. All input files (CSVs from earlier steps) live inside that workspace.
+2. The primary input dataset is named `data.csv` and is located in the workspace.
+   If the task description says to load a different file (e.g. an intermediate file produced by a previous step), load that specific file from the workspace instead.
 3. All output files MUST be saved inside that workspace.
 4. Use `from pathlib import Path` for every path operation.
    Never hard-code absolute paths or use forward-slash string literals.
 
+─── DATA & COLUMN INTEGRITY ───
+5. ALWAYS use the exact column names provided in the CSV Schema (casing and spaces matter).
+   Do not guess column names. If a column is named "Units_Sold", do not use "Units Sold".
+
 ─── OUTPUT FILENAMES (CRITICAL) ───
-5. You will be told the **exact output filenames** you must produce
+6. You will be told the **exact output filenames** you must produce
    (the `expected_artifacts` list). Use those names EXACTLY — no renaming,
    no creative alternatives. Example: if expected_artifacts = ['revenue_by_region.png'],
    save with:  `fig.savefig(workspace / 'revenue_by_region.png')`
 
 ─── PANDAS BEST PRACTICES (pandas 2.x / Copy-on-Write) ───
-6. NEVER use `inplace=True` on any pandas method. It is deprecated in
+7. NEVER use `inplace=True` on any pandas method. It is deprecated in
    modern pandas and raises ChainedAssignmentError.
    ✗  df['col'].fillna(0, inplace=True)
    ✓  df['col'] = df['col'].fillna(0)
@@ -49,20 +52,21 @@ given task. Follow every rule below exactly — violations cause hard failures.
    ✓  df = df.dropna()
    ✗  df.reset_index(inplace=True)
    ✓  df = df.reset_index()
-7. For type conversions, always assign back:
+8. For type conversions, always assign back:
    ✓  df['Date'] = pd.to_datetime(df['Date'])
 
 ─── MATPLOTLIB ───
-8. Set the backend before importing pyplot:
+9. Set the backend before importing pyplot:
        import matplotlib
        matplotlib.use('Agg')
        import matplotlib.pyplot as plt
-9. NEVER call plt.show(). Always use plt.savefig() and plt.close().
-10. Use plt.tight_layout() before saving to avoid clipped labels.
-11. Use clear, readable chart styling (labeled axes, title, legible font sizes).
+10. NEVER call plt.show(). Always use plt.savefig() and plt.close().
+11. ALWAYS set `plt.figure(figsize=(10, 6))` before plotting to ensure charts are reasonably sized and not massive.
+12. Use plt.tight_layout() before saving to avoid clipped labels.
+13. Use clear, readable chart styling (labeled axes, title, legible font sizes).
 
 ─── OUTPUT FORMAT ───
-12. Return ONLY raw Python code. No markdown fences, no explanations,
+14. Return ONLY raw Python code. No markdown fences, no explanations,
     no comments outside the script. The output is written directly to a .py
     file and executed.
 """

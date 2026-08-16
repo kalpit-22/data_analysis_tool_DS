@@ -20,10 +20,9 @@ from dotenv import load_dotenv
 from profiler import profile_csv
 from planner import plan_tasks
 from coder import generate_code
-from executor import prepare_workspace, run_script, verify_artifacts, WORKSPACE_DIR
+from executor import prepare_workspace, run_script, verify_artifacts
 from reviewer import review
-
-load_dotenv()
+from config import WORKSPACE_DIR, MAX_RETRIES_PER_TASK
 
 
 def main():
@@ -69,7 +68,7 @@ def main():
     # 1. Prepare Workspace Environment
     print(f"\n[+] Preparing workspace sandbox at {WORKSPACE_DIR}...")
     try:
-        prepare_workspace(str(csv_path))
+        prepare_workspace(str(csv_path), WORKSPACE_DIR)
         print("    Workspace prepared and input CSV copied as 'data.csv'.")
     except Exception as e:
         print(f"[-] Workspace preparation failed: {e}")
@@ -95,19 +94,6 @@ def main():
         if not plan.steps:
             print("⚠️ No steps returned by planner – aborting.")
             sys.exit(1)
-        # Derive unique artifact filenames from each step's name so that
-        # parallel aggregation / plot steps never collide.
-        for step in plan.steps:
-            # Normalise step name to a safe snake_case base
-            safe = step.step_name.lower().replace(" ", "_").replace("-", "_")
-            name = step.step_name.lower()
-            if "clean" in name:
-                step.expected_artifacts = [f"{safe}.csv"]
-            elif "aggregate" in name or "group" in name:
-                step.expected_artifacts = [f"{safe}.csv"]
-            elif "chart" in name or "plot" in name:
-                step.expected_artifacts = [f"{safe}.png"]
-            # Otherwise keep whatever the LLM already provided
         
         print(f"    Generated {len(plan.steps)} step(s):\n")
         for i, step in enumerate(plan.steps, 1):
@@ -121,7 +107,7 @@ def main():
         sys.exit(1)
 
     # 4. Self-Correcting Execution Loop
-    max_retries = int(os.getenv("MAX_RETRIES_PER_TASK", "3"))
+    max_retries = MAX_RETRIES_PER_TASK
     results_summary = []
     
     print("="*50)
@@ -155,11 +141,11 @@ def main():
                 
                 # Run the generated script
                 print("    Running script in sandbox...")
-                exec_result = run_script(str(script_path))
+                exec_result = run_script(str(script_path), WORKSPACE_DIR)
                 
                 # Verify any expected artifacts
                 print("    Verifying outputs...")
-                artifact_check = verify_artifacts(step.expected_artifacts)
+                artifact_check = verify_artifacts(step.expected_artifacts, WORKSPACE_DIR)
                 
                 # Review results (DeepSeek Flash)
                 print("    Reviewing results...")

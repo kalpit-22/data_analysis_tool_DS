@@ -1,10 +1,8 @@
 import os
 from typing import Optional
-from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
-
-load_dotenv()
+from config import REVIEWER_MODEL, DEEPSEEK_API_KEY, DEEPSEEK_BASE_URL
 
 
 class ReviewResult(BaseModel):
@@ -14,6 +12,7 @@ class ReviewResult(BaseModel):
         description="True if the script executed successfully and generated all expected artifacts correctly, False otherwise"
     )
     reason: str = Field(
+        default="",
         description="Detailed reason for failure if approved is False. Empty string if approved is True."
     )
     retry_suggestion: Optional[str] = Field(
@@ -29,9 +28,9 @@ def get_reviewer_llm() -> ChatOpenAI:
     and cheap for this workload.
     """
     return ChatOpenAI(
-        base_url=os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1"),
-        api_key=os.getenv("DEEPSEEK_API_KEY"),
-        model=os.getenv("DEEPSEEK_FLASH_MODEL", "deepseek-chat"),
+        base_url=DEEPSEEK_BASE_URL,
+        api_key=DEEPSEEK_API_KEY,
+        model=REVIEWER_MODEL,
         temperature=0.1,  # low temperature for consistent evaluation
         max_tokens=4096,
     )
@@ -48,7 +47,7 @@ You must reject the execution (approved=False) if:
 5. The execution was clean but failed to achieve the user's intent.
 
 If you do not approve the execution, provide a clear, concise reason and a retry suggestion to guide the Coder agent.
-"""
+Return your evaluation as JSON."""
 
 
 def review(task_description: str, exec_result: dict, artifact_check: dict) -> ReviewResult:
@@ -56,7 +55,8 @@ def review(task_description: str, exec_result: dict, artifact_check: dict) -> Re
     Calls the Reviewer agent to assess execution and decide if retry is needed.
     """
     llm = get_reviewer_llm()
-    structured_llm = llm.with_structured_output(ReviewResult)
+    # DeepSeek doesn't support JSON Schema response_format — use json_mode instead
+    structured_llm = llm.with_structured_output(ReviewResult, method="json_mode")
 
     user_prompt = f"""Task Description:
 {task_description}

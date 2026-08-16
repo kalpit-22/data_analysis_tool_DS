@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DataPilot</title>
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="top-nav">
+            <div class="logo">
+                <i class="fa-solid fa-table-cells"></i>
+                <span>DataPilot</span>
+            </div>
+            <div class="status-indicator">
+                <div class="dot active"></div>
+                <span id="nav-status-text">Ready</span>
+            </div>
+        </header>
+
+        <!-- Main Workspace -->
+        <main class="workspace">
+            <!-- Left Panel: Upload & Logs -->
+            <section class="panel left-panel">
+                
+                <!-- Upload Area (Hidden during analysis) -->
+                <div id="upload-section" class="card upload-card active">
+                    <h2>New Analysis</h2>
+                    <p class="subtitle">Upload a dataset and describe what you want to discover.</p>
+                    
+                    <div id="drop-zone" class="drop-zone">
+                        <i class="fa-solid fa-cloud-arrow-up icon-large"></i>
+                        <p>Drag & drop your CSV here</p>
+                        <span class="or">or</span>
+                        <input type="file" id="file-input" accept=".csv" hidden>
+                        <button id="browse-btn" class="btn secondary">Browse Files</button>
+                        <div id="file-info" class="file-info hidden">
+                            <i class="fa-solid fa-file-csv"></i>
+                            <span id="file-name">filename.csv</span>
+                            <button id="remove-file-btn" class="icon-btn"><i class="fa-solid fa-xmark"></i></button>
+                        </div>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="query-input">What would you like to analyze?</label>
+                        <textarea id="query-input" placeholder="e.g. Plot a histogram of revenue by month" rows="3"></textarea>
+                    </div>
+
+                    <button id="analyze-btn" class="btn primary full-width" disabled>
+                        <i class="fa-solid fa-wand-magic-sparkles"></i> Launch Analysis
+                    </button>
+                </div>
+
+                <!-- Execution Feed (Visible during analysis) -->
+                <div id="execution-section" class="execution-feed hidden">
+                    <div class="feed-header">
+                        <h2>Execution Log</h2>
+                        <div class="spinner hidden" id="main-spinner"></div>
+                    </div>
+                    
+                    <div id="feed-container" class="feed-container">
+                        <!-- Step cards will be injected here by app.js -->
+                    </div>
+                </div>
+
+            </section>
+
+            <!-- Right Panel: Results & Artifacts -->
+            <section class="panel right-panel">
+                <div class="panel-header">
+                    <h2>Results & Output</h2>
+                </div>
+                
+                <div id="results-container" class="results-container empty-state">
+                    <i class="fa-regular fa-image empty-icon"></i>
+                    <p>Artifacts will appear here as they are generated.</p>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Script -->
+    <script src="/static/app.js"></script>
+</body>
+</html>

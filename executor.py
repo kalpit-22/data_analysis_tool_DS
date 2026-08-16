@@ -16,21 +16,16 @@ import os
 import shutil
 import subprocess
 from pathlib import Path
-from dotenv import load_dotenv
-
-load_dotenv()
-
-WORKSPACE_DIR = Path(os.getenv("WORKSPACE_DIR", "./workspace")).resolve()
-TIMEOUT_SECONDS = int(os.getenv("EXEC_TIMEOUT_SECONDS", "15"))
+from config import WORKSPACE_DIR, EXEC_TIMEOUT_SECONDS
 
 
-def prepare_workspace(csv_path: str) -> None:
+def prepare_workspace(csv_path: str, workspace_dir: Path) -> None:
     """
     Cleans the workspace directory and copies the input CSV there, preserving the original filename.
     """
     # Ensure a clean workspace
-    if WORKSPACE_DIR.exists():
-        for item in WORKSPACE_DIR.iterdir():
+    if workspace_dir.exists():
+        for item in workspace_dir.iterdir():
             try:
                 if item.is_file():
                     item.unlink()
@@ -39,25 +34,26 @@ def prepare_workspace(csv_path: str) -> None:
             except Exception:
                 pass
     else:
-        WORKSPACE_DIR.mkdir(parents=True, exist_ok=True)
+        workspace_dir.mkdir(parents=True, exist_ok=True)
 
-    # Resolve source CSV and copy it preserving its basename
+    # Resolve source CSV and copy it to a standard 'data.csv'
     src = Path(csv_path).resolve()
     if not src.exists():
         raise FileNotFoundError(f"Source CSV file does not exist: {csv_path}")
-    dst = WORKSPACE_DIR / src.name
+    dst = workspace_dir / "data.csv"
     shutil.copy2(src, dst)
 
 
-def run_script(script_path: str) -> dict:
+def run_script(script_path: str, workspace_dir: Path) -> dict:
     """
     Executes a generated Python script inside the workspace sandbox using the venv's Python.
 
     Returns a dict with stdout, stderr, returncode, and timed_out flag.
     """
     script_path = Path(script_path).resolve()
+    workspace_dir = Path(workspace_dir).resolve()
 
-    if not str(script_path).startswith(str(WORKSPACE_DIR)):
+    if not str(script_path).startswith(str(workspace_dir)):
         raise ValueError(
             f"Refusing to execute script outside workspace: {script_path}"
         )
@@ -67,7 +63,9 @@ def run_script(script_path: str) -> dict:
     project_root = Path(__file__).parent.resolve()
     venv_python = project_root / ".venv" / "Scripts" / "python.exe"
     if not venv_python.exists():
-        venv_python = project_root / ".venv" / "bin" / "python"
+        venv_python = project_root / "venv" / "bin" / "python"
+        if not venv_python.exists():
+            venv_python = project_root / ".venv" / "bin" / "python"
     
     python_exe = str(venv_python) if venv_python.exists() else "python"
 
@@ -77,13 +75,13 @@ def run_script(script_path: str) -> dict:
 
     try:
         result = subprocess.run(
-            [python_exe, str(script_path), str(WORKSPACE_DIR)],
-            cwd=str(WORKSPACE_DIR),
+            [python_exe, str(script_path), str(workspace_dir)],
+            cwd=str(workspace_dir),
             capture_output=True,
             text=True,
             encoding="utf-8",      # avoid cp1252 decode errors on Windows
             errors="replace",       # never crash the sandbox on a bad byte
-            timeout=TIMEOUT_SECONDS,
+            timeout=EXEC_TIMEOUT_SECONDS,
             env=env,
         )
         return {
@@ -95,20 +93,20 @@ def run_script(script_path: str) -> dict:
     except subprocess.TimeoutExpired as e:
         return {
             "stdout": e.stdout or "",
-            "stderr": (e.stderr or "") + f"\n[TIMED OUT after {TIMEOUT_SECONDS}s]",
+            "stderr": (e.stderr or "") + f"\n[TIMED OUT after {EXEC_TIMEOUT_SECONDS}s]",
             "returncode": None,
             "timed_out": True,
         }
 
 
-def verify_artifacts(expected_files: list[str]) -> dict:
+def verify_artifacts(expected_files: list[str], workspace_dir: Path) -> dict:
     """
     Confirms expected output files (e.g. chart.png, cleaned.csv) exist in
     the workspace and are non-empty.
     """
     results = {}
     for fname in expected_files:
-        fpath = WORKSPACE_DIR / fname
+        fpath = workspace_dir / fname
         results[fname] = fpath.exists() and fpath.stat().st_size > 0
     return results
 
