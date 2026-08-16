@@ -9,14 +9,15 @@ the cheaper Flash model (deepseek-chat).
 
 import os
 from langchain_openai import ChatOpenAI
-from config import CODER_MODEL, DEEPSEEK_API_KEY, DEEPSEEK_BASE_URL
+from config import CODER_MODEL, PRO_MODEL, DEEPSEEK_API_KEY, DEEPSEEK_BASE_URL
 
-coder_llm = ChatOpenAI(
-    base_url=DEEPSEEK_BASE_URL,
-    api_key=DEEPSEEK_API_KEY,
-    model=CODER_MODEL,
-    temperature=0.1,  # low temperature for stable code generation
-)
+def get_coder_llm(use_pro: bool = False) -> ChatOpenAI:
+    return ChatOpenAI(
+        base_url=DEEPSEEK_BASE_URL,
+        api_key=DEEPSEEK_API_KEY,
+        model=PRO_MODEL if use_pro else CODER_MODEL,
+        temperature=0.1,  # low temperature for stable code generation
+    )
 
 CODER_SYSTEM_PROMPT = """\
 You are the Coder agent in a data-analysis pipeline running on **Windows**.
@@ -78,7 +79,8 @@ def generate_code(
     workspace_dir: str,
     expected_artifacts: list[str] | None = None,
     previous_code: str = None,
-    error: str = None
+    error: str = None,
+    use_pro: bool = False
 ) -> str:
     """
     Calls the Coder agent to produce a script for one atomic task.
@@ -120,7 +122,8 @@ IMPORTANT reminders for your fix:
 Return ONLY the complete corrected Python code. No markdown fences or explanations."""
         messages.append({"role": "user", "content": retry_prompt})
 
-    response = coder_llm.invoke(messages)
+    llm = get_coder_llm(use_pro)
+    response = llm.invoke(messages)
 
     # Strip any markdown code fences if the model generated them despite instructions
     content = response.content.strip()

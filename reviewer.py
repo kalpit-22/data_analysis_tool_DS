@@ -2,7 +2,7 @@ import os
 from typing import Optional
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
-from config import REVIEWER_MODEL, DEEPSEEK_API_KEY, DEEPSEEK_BASE_URL
+from config import REVIEWER_MODEL, PRO_MODEL, DEEPSEEK_API_KEY, DEEPSEEK_BASE_URL
 
 
 class ReviewResult(BaseModel):
@@ -21,16 +21,15 @@ class ReviewResult(BaseModel):
     )
 
 
-def get_reviewer_llm() -> ChatOpenAI:
+def get_reviewer_llm(use_pro: bool = False) -> ChatOpenAI:
     """
-    Configure ChatOpenAI client pointed at the DeepSeek cloud API (Flash).
-    Review is a simple structured pass/fail evaluation — Flash is fast
-    and cheap for this workload.
+    Configure ChatOpenAI client pointed at the DeepSeek cloud API.
+    Review is a simple structured pass/fail evaluation.
     """
     return ChatOpenAI(
         base_url=DEEPSEEK_BASE_URL,
         api_key=DEEPSEEK_API_KEY,
-        model=REVIEWER_MODEL,
+        model=PRO_MODEL if use_pro else REVIEWER_MODEL,
         temperature=0.1,  # low temperature for consistent evaluation
         max_tokens=4096,
     )
@@ -50,11 +49,11 @@ If you do not approve the execution, provide a clear, concise reason and a retry
 Return your evaluation as JSON."""
 
 
-def review(task_description: str, exec_result: dict, artifact_check: dict) -> ReviewResult:
+def review(task_description: str, exec_result: dict, artifact_check: dict, use_pro: bool = False) -> ReviewResult:
     """
     Calls the Reviewer agent to assess execution and decide if retry is needed.
     """
-    llm = get_reviewer_llm()
+    llm = get_reviewer_llm(use_pro)
     # DeepSeek doesn't support JSON Schema response_format — use json_mode instead
     structured_llm = llm.with_structured_output(ReviewResult, method="json_mode")
 

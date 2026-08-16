@@ -8,6 +8,10 @@ load_dotenv()
 CODER_MODEL = os.getenv("CODER_MODEL", "deepseek-v4-flash")
 PLANNER_MODEL = os.getenv("PLANNER_MODEL", "deepseek-v4-flash")
 REVIEWER_MODEL = os.getenv("REVIEWER_MODEL", "deepseek-v4-flash")
+PRO_MODEL = os.getenv("PRO_MODEL", "deepseek-v4-pro")
+
+# Security
+APP_PASSWORD = os.getenv("APP_PASSWORD", "DataPilot123!")
 
 # DeepSeek API Config
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")

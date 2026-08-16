@@ -16,7 +16,20 @@
     <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
-    <div class="app-container">
+    <!-- Login Overlay -->
+    <div id="login-overlay" class="login-overlay">
+        <div class="login-card card">
+            <h2><i class="fa-solid fa-lock"></i> Authentication Required</h2>
+            <p class="subtitle">Please enter the password to access DataPilot.</p>
+            <div class="input-group">
+                <input type="password" id="login-password" placeholder="Enter password..." class="password-input">
+            </div>
+            <button id="login-btn" class="btn primary full-width">Unlock</button>
+            <p id="login-error" class="hidden" style="color: var(--error); margin-top: 1rem; font-size: 0.85rem;">Incorrect password.</p>
+        </div>
+    </div>
+
+    <div class="app-container hidden" id="app-container">
         <!-- Header -->
         <header class="top-nav">
             <div class="logo">
@@ -70,6 +83,7 @@
                             <div class="spinner hidden" id="main-spinner"></div>
                             <button id="cancel-btn" class="btn secondary danger"><i class="fa-solid fa-stop"></i> Cancel</button>
                             <button id="home-btn" class="btn secondary hidden"><i class="fa-solid fa-house"></i> New Analysis</button>
+                            <button id="pro-btn" class="btn primary hidden"><i class="fa-solid fa-wand-magic-sparkles"></i> Enhance with Pro</button>
                         </div>
                     </div>
                     

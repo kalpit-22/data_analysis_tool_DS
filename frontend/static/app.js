@@ -15,10 +15,49 @@ const mainSpinner = document.getElementById('main-spinner');
 const navStatusText = document.getElementById('nav-status-text');
 const cancelBtn = document.getElementById('cancel-btn');
 const homeBtn = document.getElementById('home-btn');
+const proBtn = document.getElementById('pro-btn');
+
+// Login Elements
+const loginOverlay = document.getElementById('login-overlay');
+const appContainer = document.getElementById('app-container');
+const loginBtn = document.getElementById('login-btn');
+const loginPassword = document.getElementById('login-password');
+const loginError = document.getElementById('login-error');
 
 let currentFile = null;
 let sessionToken = null;
 let currentEventSource = null;
+let appPassword = localStorage.getItem('datapilot_pwd') || '';
+
+// ── Authentication Logic ──
+async function checkAuth(pwd) {
+    try {
+        const res = await fetch(`/login?pwd=${encodeURIComponent(pwd)}`, { method: 'POST' });
+        if (res.ok) {
+            appPassword = pwd;
+            localStorage.setItem('datapilot_pwd', pwd);
+            loginOverlay.classList.add('hidden');
+            appContainer.classList.remove('hidden');
+        } else {
+            loginError.classList.remove('hidden');
+        }
+    } catch (err) {
+        loginError.classList.remove('hidden');
+    }
+}
+
+if (appPassword) {
+    checkAuth(appPassword);
+}
+
+loginBtn.addEventListener('click', () => {
+    loginError.classList.add('hidden');
+    checkAuth(loginPassword.value);
+});
+
+loginPassword.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') loginBtn.click();
+});
 
 // ── File Upload Logic ──
 browseBtn.addEventListener('click', () => fileInput.click());
@@ -89,7 +128,7 @@ analyzeBtn.addEventListener('click', async () => {
         const formData = new FormData();
         formData.append('file', currentFile);
         
-        const res = await fetch('/upload', {
+        const res = await fetch(`/upload?pwd=${encodeURIComponent(appPassword)}`, {
             method: 'POST',
             body: formData
         });
@@ -110,7 +149,7 @@ analyzeBtn.addEventListener('click', async () => {
     }
 });
 
-function startAnalysisStream(query) {
+function startAnalysisStream(query, usePro=false) {
     // Switch UI
     uploadSection.classList.add('hidden');
     executionSection.classList.remove('hidden');
@@ -118,12 +157,13 @@ function startAnalysisStream(query) {
     resultsContainer.innerHTML = '';
     resultsContainer.classList.remove('empty-state');
     feedContainer.innerHTML = '';
-    navStatusText.textContent = "Analyzing...";
+    navStatusText.textContent = usePro ? "Analyzing (Pro Mode)..." : "Analyzing...";
     
     cancelBtn.classList.remove('hidden');
     homeBtn.classList.add('hidden');
+    proBtn.classList.add('hidden');
 
-    const es = new EventSource(`/analyze?token=${sessionToken}&request=${encodeURIComponent(query)}`);
+    const es = new EventSource(`/analyze?token=${sessionToken}&request=${encodeURIComponent(query)}&pwd=${encodeURIComponent(appPassword)}&use_pro=${usePro}`);
     currentEventSource = es;
 
     let currentStepEl = null;
@@ -179,6 +219,7 @@ function startAnalysisStream(query) {
             navStatusText.textContent = "Complete";
             cancelBtn.classList.add('hidden');
             homeBtn.classList.remove('hidden');
+            if (!usePro) proBtn.classList.remove('hidden');
         }
         else if (data.type === 'error') {
             mainSpinner.classList.add('hidden');
@@ -188,6 +229,7 @@ function startAnalysisStream(query) {
             navStatusText.textContent = "Error";
             cancelBtn.classList.add('hidden');
             homeBtn.classList.remove('hidden');
+            if (!usePro) proBtn.classList.remove('hidden');
         }
     };
 
@@ -199,6 +241,7 @@ function startAnalysisStream(query) {
         navStatusText.textContent = "Error";
         cancelBtn.classList.add('hidden');
         homeBtn.classList.remove('hidden');
+        if (!usePro) proBtn.classList.remove('hidden');
     };
 }
 
@@ -310,4 +353,33 @@ homeBtn.addEventListener('click', () => {
     analyzeBtn.disabled = false;
     analyzeBtn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Launch Analysis';
     navStatusText.textContent = "Ready";
+});
+
+proBtn.addEventListener('click', async () => {
+    if (!currentFile || !queryInput.value.trim()) return;
+
+    proBtn.disabled = true;
+    proBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Uploading...';
+    
+    try {
+        // Re-upload original file for Pro run
+        const formData = new FormData();
+        formData.append('file', currentFile);
+        
+        const res = await fetch(`/upload?pwd=${encodeURIComponent(appPassword)}`, {
+            method: 'POST',
+            body: formData
+        });
+        if (!res.ok) throw new Error("Upload failed");
+        
+        const data = await res.json();
+        sessionToken = data.token;
+        
+        // Start Pro Stream
+        startAnalysisStream(queryInput.value.trim(), true);
+    } catch (err) {
+        alert("Error launching Pro mode: " + err.message);
+        proBtn.disabled = false;
+        proBtn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Enhance with Pro';
+    }
 });

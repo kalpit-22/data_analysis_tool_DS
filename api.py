@@ -29,6 +29,8 @@ from coder import generate_code
 from executor import prepare_workspace, run_script, verify_artifacts
 from reviewer import review
 
+APP_PASSWORD = os.getenv("APP_PASSWORD", "DataPilot123!")
+
 app = FastAPI(title="DataPilot API", version="1.0.0")
 
 app.add_middleware(
@@ -57,8 +59,19 @@ def _encode_artifact(path: Path) -> dict | None:
     return {"filename": path.name, "mime": mime, "data": encoded}
 
 
+def verify_password(pwd: str):
+    if APP_PASSWORD and pwd != APP_PASSWORD:
+        raise HTTPException(status_code=401, detail="Unauthorized: Incorrect password.")
+
+@app.post("/login")
+def login(pwd: str = Query(...)):
+    verify_password(pwd)
+    return {"status": "ok"}
+
+
 @app.post("/upload")
-async def upload_csv(file: UploadFile = File(...)):
+async def upload_csv(pwd: str = Query(None), file: UploadFile = File(...)):
+    verify_password(pwd)
     if not file.filename.endswith(".csv"):
         raise HTTPException(status_code=400, detail="Only CSV files are accepted.")
     token = str(uuid.uuid4())
@@ -73,7 +86,10 @@ async def upload_csv(file: UploadFile = File(...)):
 async def analyze(
     token: str = Query(...),
     request: str = Query(...),
+    pwd: str = Query(None),
+    use_pro: bool = Query(False),
 ):
+    verify_password(pwd)
     csv_path = _sessions.get(token)
     if not csv_path or not csv_path.exists():
         raise HTTPException(status_code=404, detail="Session not found. Upload a CSV first.")
@@ -88,7 +104,7 @@ async def analyze(
             schema = await loop.run_in_executor(None, profile_csv, str(csv_path))
             yield _event({"type": "schema", "schema": schema})
 
-            plan = await loop.run_in_executor(None, plan_tasks, request, schema)
+            plan = await loop.run_in_executor(None, plan_tasks, request, schema, use_pro)
 
             for step in plan.steps:
                 # Ensure the planner provided artifacts
@@ -134,12 +150,13 @@ async def analyze(
                                 expected_artifacts=_arts,
                                 previous_code=_code,
                                 error=_err,
+                                use_pro=use_pro,
                             ),
                         )
                         script_path.write_text(code, encoding="utf-8")
                         exec_result = await loop.run_in_executor(None, run_script, str(script_path), session_workspace)
                         artifact_check = await loop.run_in_executor(None, verify_artifacts, step.expected_artifacts, session_workspace)
-                        review_result = await loop.run_in_executor(None, review, step.description, exec_result, artifact_check)
+                        review_result = await loop.run_in_executor(None, review, step.description, exec_result, artifact_check, use_pro)
 
                         yield _event({
                             "type": "step_result",

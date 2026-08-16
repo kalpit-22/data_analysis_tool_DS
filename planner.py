@@ -14,7 +14,7 @@ import os
 from typing import List
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
-from config import PLANNER_MODEL, DEEPSEEK_API_KEY, DEEPSEEK_BASE_URL
+from config import PLANNER_MODEL, PRO_MODEL, DEEPSEEK_API_KEY, DEEPSEEK_BASE_URL
 
 
 class TaskStep(BaseModel):
@@ -40,16 +40,15 @@ class DataPlan(BaseModel):
     )
 
 
-def get_planner_llm() -> ChatOpenAI:
+def get_planner_llm(use_pro: bool = False) -> ChatOpenAI:
     """
     Configure a ChatOpenAI client pointed at the DeepSeek cloud API.
-    Uses the Flash model (deepseek-chat) — fast, cheap, and fully capable
-    of producing consistent structured output for planning tasks.
+    Uses the Flash model by default, but switches to Pro if requested.
     """
     return ChatOpenAI(
         base_url=DEEPSEEK_BASE_URL,
         api_key=DEEPSEEK_API_KEY,
-        model=PLANNER_MODEL,
+        model=PRO_MODEL if use_pro else PLANNER_MODEL,
         temperature=0.1,  # low temperature: we want consistent, structured planning
         max_tokens=4096,
     )
@@ -75,7 +74,7 @@ Rules:
 - Keep the plan concise while fully addressing the request."""
 
 
-def plan_tasks(user_request: str, csv_schema: str) -> DataPlan:
+def plan_tasks(user_request: str, csv_schema: str, use_pro: bool = False) -> DataPlan:
     """
     Generate a structured task plan for the given user request and CSV schema.
 
@@ -83,11 +82,12 @@ def plan_tasks(user_request: str, csv_schema: str) -> DataPlan:
         user_request: The user's natural-language analysis request.
         csv_schema: Markdown-formatted schema summary from profiler.py
                     (column names, dtypes, non-null counts, sample rows).
+        use_pro: If True, uses PRO_MODEL instead of PLANNER_MODEL.
 
     Returns:
         DataPlan with an ordered list of TaskStep objects.
     """
-    llm = get_planner_llm()
+    llm = get_planner_llm(use_pro)
     # DeepSeek doesn't support JSON Schema response_format — use json_mode instead
     structured_llm = llm.with_structured_output(DataPlan, method="json_mode")
 
