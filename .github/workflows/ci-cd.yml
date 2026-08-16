@@ -52,3 +52,8 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Trigger Azure Web App deployment
+        if: ${{ github.event_name != 'pull_request' }}
+        run: |
+          curl -X POST '${{ secrets.AZURE_WEBHOOK_URL }}'
